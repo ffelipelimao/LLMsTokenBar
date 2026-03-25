@@ -8,45 +8,36 @@ final class UsageViewModel {
     var providerSummaries: [String: UsageSummary] = [:]
     var lastRefreshed: Date = Date()
     var totalSessions: Int = 0
-    var dailyLimit: Double = 0
 
-    private let planSettings = PlanSettings.shared
-
-    var usagePercent: Double {
-        guard dailyLimit > 0 else { return 0 }
-        return min(todaySummary.estimatedCost / dailyLimit, 1.0)
-    }
-
-    var selectedPlan: PlanType {
-        get { planSettings.selectedPlan }
-        set {
-            planSettings.selectedPlan = newValue
-            dailyLimit = planSettings.dailyCostLimit
-        }
-    }
-
-    var customDailyLimit: Double {
-        get { planSettings.customDailyLimit }
-        set {
-            planSettings.customDailyLimit = newValue
-            dailyLimit = planSettings.dailyCostLimit
-        }
-    }
+    // Real usage limits from Anthropic API
+    var fiveHourUtilization: Double = 0
+    var fiveHourResetsAt: Date? = nil
+    var sevenDayUtilization: Double = 0
+    var sevenDayResetsAt: Date? = nil
+    var sevenDaySonnetUtilization: Double = 0
+    var sevenDaySonnetResetsAt: Date? = nil
 
     private let providers: [UsageProvider]
     private let aggregator = UsageAggregator()
+    private let usageAPI = ClaudeUsageAPI()
     private var watchers: [DirectoryWatcher] = []
     private var timer: Timer?
 
     init(providers: [UsageProvider] = [ClaudeCodeProvider()]) {
         self.providers = providers
-        self.dailyLimit = planSettings.dailyCostLimit
         refresh()
         startWatching()
         startTimer()
     }
 
     func refresh() {
+        refreshLocal()
+        Task { @MainActor in
+            await refreshFromAPI()
+        }
+    }
+
+    private func refreshLocal() {
         var allRecords: [TokenUsage] = []
         for provider in providers {
             allRecords.append(contentsOf: provider.fetchUsage())
@@ -69,6 +60,25 @@ final class UsageViewModel {
         lastRefreshed = Date()
     }
 
+    @MainActor
+    private func refreshFromAPI() async {
+        guard let limits = await usageAPI.fetchUsage() else { return }
+
+        if let fh = limits.fiveHour {
+            fiveHourUtilization = fh.utilization
+            fiveHourResetsAt = fh.resetsAt
+        }
+        if let sd = limits.sevenDay {
+            sevenDayUtilization = sd.utilization
+            sevenDayResetsAt = sd.resetsAt
+        }
+        if let ss = limits.sevenDaySonnet {
+            sevenDaySonnetUtilization = ss.utilization
+            sevenDaySonnetResetsAt = ss.resetsAt
+        }
+        lastRefreshed = Date()
+    }
+
     private func startWatching() {
         for provider in providers {
             guard let dir = provider.watchedDirectory else { continue }
@@ -84,5 +94,18 @@ final class UsageViewModel {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.refresh()
         }
+    }
+
+    // Helper for formatting reset times
+    func timeUntilReset(_ date: Date?) -> String {
+        guard let date = date else { return "--" }
+        let interval = date.timeIntervalSinceNow
+        if interval <= 0 { return "now" }
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 }

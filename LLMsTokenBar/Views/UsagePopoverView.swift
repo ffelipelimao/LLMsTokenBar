@@ -2,7 +2,6 @@ import SwiftUI
 
 struct UsagePopoverView: View {
     @Bindable var viewModel: UsageViewModel
-    @State private var showSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,35 +10,30 @@ struct UsagePopoverView: View {
                 Text("LLM Usage")
                     .font(.headline)
                 Spacer()
-                Button(action: { showSettings.toggle() }) {
-                    Image(systemName: "gearshape")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // Progress bar section
-            VStack(spacing: 8) {
-                UsageProgressBar(
-                    percent: viewModel.usagePercent,
-                    cost: viewModel.todaySummary.estimatedCost,
-                    limit: viewModel.dailyLimit
+            // Usage limits from Anthropic
+            VStack(spacing: 10) {
+                UsageLimitBar(
+                    label: "Session (5h)",
+                    percent: viewModel.fiveHourUtilization,
+                    resetText: "Resets in \(viewModel.timeUntilReset(viewModel.fiveHourResetsAt))"
                 )
 
-                HStack {
-                    Text(viewModel.todaySummary.formattedCost)
-                        .font(.system(.title2, design: .rounded, weight: .semibold))
-                    Text("/ \(String(format: "$%.0f", viewModel.dailyLimit))")
-                        .font(.system(.title3, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(Int(viewModel.usagePercent * 100))%")
-                        .font(.system(.title3, design: .rounded, weight: .medium))
-                        .foregroundStyle(barColor(for: viewModel.usagePercent))
-                }
+                UsageLimitBar(
+                    label: "Weekly (All)",
+                    percent: viewModel.sevenDayUtilization,
+                    resetText: "Resets in \(viewModel.timeUntilReset(viewModel.sevenDayResetsAt))"
+                )
+
+                UsageLimitBar(
+                    label: "Weekly (Sonnet)",
+                    percent: viewModel.sevenDaySonnetUtilization,
+                    resetText: "Resets in \(viewModel.timeUntilReset(viewModel.sevenDaySonnetResetsAt))"
+                )
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
@@ -58,9 +52,9 @@ struct UsagePopoverView: View {
                     TokenPill(label: "OUT", value: viewModel.todaySummary.formattedOutput, color: .purple)
                     Spacer()
                     VStack(alignment: .trailing) {
-                        Text("\(viewModel.todaySummary.sessionCount)")
+                        Text(viewModel.todaySummary.formattedCost)
                             .font(.system(.body, design: .rounded, weight: .medium))
-                        Text("sessions")
+                        Text("\(viewModel.todaySummary.sessionCount) sessions")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -90,12 +84,6 @@ struct UsagePopoverView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
 
-            // Settings panel
-            if showSettings {
-                Divider()
-                SettingsSection(viewModel: viewModel)
-            }
-
             Divider()
 
             // Footer
@@ -120,43 +108,58 @@ struct UsagePopoverView: View {
         }
         .frame(width: 300)
     }
-
-    private func barColor(for percent: Double) -> Color {
-        if percent >= 0.9 { return .red }
-        if percent >= 0.7 { return .orange }
-        return .green
-    }
 }
 
-// MARK: - Progress Bar
+// MARK: - Usage Limit Bar
 
-struct UsageProgressBar: View {
+struct UsageLimitBar: View {
+    let label: String
     let percent: Double
-    let cost: Double
-    let limit: Double
+    let resetText: String
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.2))
-
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(barGradient)
-                    .frame(width: max(geo.size.width * percent, 0))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                Spacer()
+                Text("\(Int(percent))% used")
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(barColor)
             }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.2))
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(barGradient)
+                        .frame(width: max(geo.size.width * percent / 100.0, 0))
+                }
+            }
+            .frame(height: 8)
+
+            Text(resetText)
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
         }
-        .frame(height: 12)
+    }
+
+    private var barColor: Color {
+        if percent >= 90 { return .red }
+        if percent >= 70 { return .orange }
+        return .green
     }
 
     private var barGradient: LinearGradient {
-        if percent >= 0.9 {
+        if percent >= 90 {
             return LinearGradient(colors: [.orange, .red], startPoint: .leading, endPoint: .trailing)
         }
-        if percent >= 0.7 {
+        if percent >= 70 {
             return LinearGradient(colors: [.green, .orange], startPoint: .leading, endPoint: .trailing)
         }
-        return LinearGradient(colors: [.green.opacity(0.8), .green], startPoint: .leading, endPoint: .trailing)
+        return LinearGradient(colors: [.blue.opacity(0.6), .blue], startPoint: .leading, endPoint: .trailing)
     }
 }
 
@@ -175,44 +178,5 @@ struct TokenPill: View {
             Text(value)
                 .font(.system(.body, design: .rounded, weight: .medium))
         }
-    }
-}
-
-// MARK: - Settings
-
-struct SettingsSection: View {
-    @Bindable var viewModel: UsageViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Plan")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            Picker("", selection: $viewModel.selectedPlan) {
-                ForEach(PlanType.allCases) { plan in
-                    Text(plan.displayName).tag(plan)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-
-            if viewModel.selectedPlan == .custom {
-                HStack {
-                    Text("Daily limit:")
-                        .font(.caption)
-                    TextField("$", value: $viewModel.customDailyLimit, format: .currency(code: "USD"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                }
-            }
-
-            Text("Daily limit: \(String(format: "$%.0f", viewModel.dailyLimit))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 }

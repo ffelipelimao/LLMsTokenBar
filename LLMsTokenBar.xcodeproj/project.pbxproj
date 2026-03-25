@@ -15,6 +15,7 @@
 		8558A751F4E357DB221A6497 /* UsageProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691FA0D8ED3048AE5C7CAC9F /* UsageProvider.swift */; };
 		B1D02619BDF407BA08EEB374 /* UsageAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652DC01A92DAC3629987743A /* UsageAggregator.swift */; };
 		B3A94B8CC487444CA15E0E47 /* ProviderSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95DB62E572AB9C12075580FA /* ProviderSectionView.swift */; };
+		BCBF7AA948A233A85579C931 /* ClaudeUsageAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE91DAD9E6215280E85B8CE /* ClaudeUsageAPI.swift */; };
 		CB6233936F1E83DE0F0063DE /* DirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D036AB631DD19BC174454D /* DirectoryWatcher.swift */; };
 		E5FD988D3DAEF5CD66DDD329 /* TokenUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A2984E18CD914681E48365 /* TokenUsage.swift */; };
 		ED7E87B578F7DD7EF582C05A /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4646F200341331CB706B11A6 /* LLMProvider.swift */; };
@@ -28,6 +29,7 @@
 		3167A82451E8EA0B654AC585 /* ClaudeCodeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeProvider.swift; sourceTree = "<group>"; };
 		420B9CAADFB6BAB54CD033D5 /* UsageSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSummary.swift; sourceTree = "<group>"; };
 		4646F200341331CB706B11A6 /* LLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProvider.swift; sourceTree = "<group>"; };
+		4CE91DAD9E6215280E85B8CE /* ClaudeUsageAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageAPI.swift; sourceTree = "<group>"; };
 		5DF8AFB350ED17936BD8D714 /* MenuBarLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabel.swift; sourceTree = "<group>"; };
 		649356935A2D8F4F067B1187 /* UsagePopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePopoverView.swift; sourceTree = "<group>"; };
 		652DC01A92DAC3629987743A /* UsageAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAggregator.swift; sourceTree = "<group>"; };
@@ -66,6 +68,7 @@
 		570207904A23A7937CFB1EDF /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				4CE91DAD9E6215280E85B8CE /* ClaudeUsageAPI.swift */,
 				66D036AB631DD19BC174454D /* DirectoryWatcher.swift */,
 				652DC01A92DAC3629987743A /* UsageAggregator.swift */,
 			);
@@ -175,6 +178,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3A5CB72BD834D40109219F2C /* ClaudeCodeProvider.swift in Sources */,
+				BCBF7AA948A233A85579C931 /* ClaudeUsageAPI.swift in Sources */,
 				CB6233936F1E83DE0F0063DE /* DirectoryWatcher.swift in Sources */,
 				ED7E87B578F7DD7EF582C05A /* LLMProvider.swift in Sources */,
 				F5EF5BBF3CA6DA4C5B9C8C49 /* LLMsTokenBarApp.swift in Sources */,

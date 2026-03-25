@@ -2,9 +2,10 @@ import SwiftUI
 
 struct MenuBarLabel: View {
     let summary: UsageSummary
-    let usagePercent: Double
+    let fiveHourPercent: Double
+    let sevenDayPercent: Double
 
     var body: some View {
-        Text("\(summary.formattedIO) / \(summary.formattedCost) (\(Int(usagePercent * 100))%)")
+        Text("\(summary.formattedIO) · \(Int(sevenDayPercent))%")
     }
 }
