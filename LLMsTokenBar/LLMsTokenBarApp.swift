@@ -8,7 +8,11 @@ struct LLMsTokenBarApp: App {
         MenuBarExtra {
             UsagePopoverView(viewModel: viewModel)
         } label: {
-            MenuBarLabel(summary: viewModel.todaySummary, usagePercent: viewModel.usagePercent)
+            MenuBarLabel(
+                summary: viewModel.todaySummary,
+                fiveHourPercent: viewModel.fiveHourUtilization,
+                sevenDayPercent: viewModel.sevenDayUtilization
+            )
         }
         .menuBarExtraStyle(.window)
     }
