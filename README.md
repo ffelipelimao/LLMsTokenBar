@@ -1,5 +1,7 @@
 # LLMsTokenBar
 
+<img width="346" height="406" alt="Captura de Tela 2026-03-25 às 14 22 35" src="https://github.com/user-attachments/assets/828ecc34-02d3-4188-a81e-5bc222fe0693" />
+
 A native macOS menu bar app that tracks your LLM token usage and estimated cost in real-time.
 
 ![Menu Bar Preview](https://img.shields.io/badge/macOS-14%2B-blue) ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
