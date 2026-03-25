@@ -1,0 +1,26 @@
+name: LLMsTokenBar
+options:
+  bundleIdPrefix: com.llmstokenbar
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+targets:
+  LLMsTokenBar:
+    type: application
+    platform: macOS
+    sources:
+      - LLMsTokenBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.llmstokenbar.app
+        PRODUCT_NAME: LLMsTokenBar
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        INFOPLIST_KEY_LSUIElement: true
+        CODE_SIGN_ENTITLEMENTS: ""
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: "NO"
+        ENABLE_APP_SANDBOX: "NO"
+        GENERATE_INFOPLIST_FILE: "YES"
