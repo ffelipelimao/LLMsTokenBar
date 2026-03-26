@@ -38,6 +38,13 @@ open LLMsTokenBar.xcodeproj
 
 Build and run with `Cmd+R`. The app appears in the menu bar (no Dock icon).
 
+### Run from command line
+
+```bash
+xcodebuild -project LLMsTokenBar.xcodeproj -scheme LLMsTokenBar -configuration Debug build
+open ~/Library/Developer/Xcode/DerivedData/LLMsTokenBar-*/Build/Products/Debug/LLMsTokenBar.app
+```
+
 ## Understanding Cost Estimates
 
 The estimated cost includes all token types charged by Anthropic:
