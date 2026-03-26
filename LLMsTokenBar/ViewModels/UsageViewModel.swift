@@ -16,22 +16,33 @@ final class UsageViewModel {
     var sevenDayResetsAt: Date? = nil
     var sevenDaySonnetUtilization: Double = 0
     var sevenDaySonnetResetsAt: Date? = nil
+    var apiError: String? = nil
 
     private let providers: [UsageProvider]
     private let aggregator = UsageAggregator()
     private let usageAPI = ClaudeUsageAPI()
     private var watchers: [DirectoryWatcher] = []
-    private var timer: Timer?
+    private var localTimer: Timer?
+    private var apiTimer: Timer?
+    private var lastAPICall: Date = .distantPast
+
+    // 5 minutes between API calls to avoid rate limiting
+    private let apiInterval: TimeInterval = 300
 
     init(providers: [UsageProvider] = [ClaudeCodeProvider()]) {
         self.providers = providers
-        refresh()
+        refreshLocal()
+        Task { @MainActor in
+            await refreshFromAPI()
+        }
         startWatching()
-        startTimer()
+        startTimers()
     }
 
-    func refresh() {
+    /// Called by Refresh button — refreshes local + forces API call
+    func refreshAll() {
         refreshLocal()
+        lastAPICall = .distantPast  // reset cooldown
         Task { @MainActor in
             await refreshFromAPI()
         }
@@ -62,7 +73,15 @@ final class UsageViewModel {
 
     @MainActor
     private func refreshFromAPI() async {
-        guard let limits = await usageAPI.fetchUsage() else { return }
+        guard Date().timeIntervalSince(lastAPICall) >= apiInterval else { return }
+        lastAPICall = Date()
+
+        guard let limits = await usageAPI.fetchUsage() else {
+            apiError = "Rate limited or unavailable"
+            return
+        }
+
+        apiError = nil
 
         if let fh = limits.fiveHour {
             fiveHourUtilization = fh.utilization
@@ -83,24 +102,31 @@ final class UsageViewModel {
         for provider in providers {
             guard let dir = provider.watchedDirectory else { continue }
             if let watcher = DirectoryWatcher(directory: dir, callback: { [weak self] in
-                self?.refresh()
+                // Directory changes only refresh local data, NOT the API
+                self?.refreshLocal()
             }) {
                 watchers.append(watcher)
             }
         }
     }
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            self?.refresh()
+    private func startTimers() {
+        // Local data: every 60 seconds
+        localTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.refreshLocal()
+        }
+        // API: every 5 minutes
+        apiTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refreshFromAPI()
+            }
         }
     }
 
-    // Helper for formatting reset times
     func timeUntilReset(_ date: Date?) -> String {
         guard let date = date else { return "--" }
         let interval = date.timeIntervalSinceNow
-        if interval <= 0 { return "now" }
+        if interval <= 0 { return "expired" }
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
