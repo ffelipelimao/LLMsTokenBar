@@ -16,6 +16,14 @@ struct UsagePopoverView: View {
             .padding(.bottom, 10)
 
             // Usage limits from Anthropic
+            if let error = viewModel.apiError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
+
             VStack(spacing: 10) {
                 UsageLimitBar(
                     label: "Session (5h)",
@@ -92,7 +100,7 @@ struct UsagePopoverView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                 Spacer()
-                Button("Refresh") { viewModel.refresh() }
+                Button("Refresh") { viewModel.refreshAll() }
                     .buttonStyle(.plain)
                     .font(.caption)
                     .foregroundStyle(.blue)
