@@ -5,4 +5,9 @@ protocol UsageProvider {
     var providerType: LLMProviderType { get }
     var watchedDirectory: URL? { get }
     func fetchUsage() -> [TokenUsage]
+    func fetchContextMetrics(since: Date) -> [ContextMetrics]
+}
+
+extension UsageProvider {
+    func fetchContextMetrics(since: Date) -> [ContextMetrics] { [] }
 }

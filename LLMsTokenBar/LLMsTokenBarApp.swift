@@ -11,7 +11,8 @@ struct LLMsTokenBarApp: App {
             MenuBarLabel(
                 summary: viewModel.todaySummary,
                 fiveHourPercent: viewModel.fiveHourUtilization,
-                sevenDayPercent: viewModel.sevenDayUtilization
+                sevenDayPercent: viewModel.sevenDayUtilization,
+                hallucinationMaxLevel: viewModel.hallucinationRisk.maxLevel
             )
         }
         .menuBarExtraStyle(.window)

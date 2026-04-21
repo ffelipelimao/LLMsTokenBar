@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UserNotifications
 
 @Observable
 final class UsageViewModel {
@@ -18,6 +19,10 @@ final class UsageViewModel {
     var sevenDaySonnetResetsAt: Date? = nil
     var apiError: String? = nil
 
+    // Hallucination risk (context-fill based)
+    var hallucinationRisk: HallucinationRiskSummary = .empty
+    var contextMetrics: [ContextMetrics] = []
+
     private let providers: [UsageProvider]
     private let aggregator = UsageAggregator()
     private let usageAPI = ClaudeUsageAPI()
@@ -25,6 +30,9 @@ final class UsageViewModel {
     private var localTimer: Timer?
     private var apiTimer: Timer?
     private var lastAPICall: Date = .distantPast
+    private var previousMaxRiskLevel: HallucinationRiskSummary.Level = .low
+    private var notificationsAuthorized = false
+    private var notificationAuthRequested = false
 
     // 5 minutes between API calls to avoid rate limiting
     private let apiInterval: TimeInterval = 300
@@ -50,11 +58,13 @@ final class UsageViewModel {
 
     private func refreshLocal() {
         var allRecords: [TokenUsage] = []
+        var allContextMetrics: [ContextMetrics] = []
+        let today = Calendar.current.startOfDay(for: Date())
         for provider in providers {
             allRecords.append(contentsOf: provider.fetchUsage())
+            allContextMetrics.append(contentsOf: provider.fetchContextMetrics(since: today))
         }
 
-        let today = Calendar.current.startOfDay(for: Date())
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
 
         todaySummary = aggregator.summary(for: allRecords, since: today)
@@ -67,8 +77,63 @@ final class UsageViewModel {
             providers: providers.map(\.providerType)
         )
 
+        let newRisk = aggregator.hallucinationRisk(from: allContextMetrics)
+        handleRiskChange(previous: hallucinationRisk, next: newRisk)
+        hallucinationRisk = newRisk
+        contextMetrics = allContextMetrics.sorted { $0.fillPercent > $1.fillPercent }
+
         totalSessions = allRecords.count
         lastRefreshed = Date()
+    }
+
+    private func handleRiskChange(
+        previous: HallucinationRiskSummary,
+        next: HallucinationRiskSummary
+    ) {
+        let newLevel = next.maxLevel
+        defer { previousMaxRiskLevel = newLevel }
+        // Only fire when crossing UP into .high or .critical
+        guard newLevel > previousMaxRiskLevel, newLevel >= .high else { return }
+        notify(forLevel: newLevel, risk: next)
+    }
+
+    private func notify(
+        forLevel level: HallucinationRiskSummary.Level,
+        risk: HallucinationRiskSummary
+    ) {
+        requestNotificationAuthorizationIfNeeded { [weak self] authorized in
+            guard let self = self, authorized else { return }
+            let content = UNMutableNotificationContent()
+            content.title = level == .critical
+                ? "Hallucination risk: critical"
+                : "Hallucination risk: high"
+            let pct = Int(risk.maxFillPercent.rounded())
+            if let sid = risk.worstSessionId {
+                let short = String(sid.prefix(8))
+                content.body = "Session \(short) at \(pct)% context — accuracy likely degraded. Consider starting a fresh conversation."
+            } else {
+                content.body = "Context at \(pct)% — accuracy likely degraded."
+            }
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "hallucination-risk-\(Date().timeIntervalSince1970)",
+                content: content,
+                trigger: nil
+            )
+            UNUserNotificationCenter.current().add(request)
+        }
+    }
+
+    private func requestNotificationAuthorizationIfNeeded(completion: @escaping (Bool) -> Void) {
+        if notificationsAuthorized { completion(true); return }
+        if notificationAuthRequested { completion(false); return }
+        notificationAuthRequested = true
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
+            DispatchQueue.main.async {
+                self?.notificationsAuthorized = granted
+                completion(granted)
+            }
+        }
     }
 
     @MainActor
