@@ -48,6 +48,12 @@ struct UsagePopoverView: View {
 
             Divider()
 
+            HallucinationRiskList(metrics: viewModel.contextMetrics)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+            Divider()
+
             // Today details
             VStack(alignment: .leading, spacing: 8) {
                 Text("Today")
@@ -168,6 +174,129 @@ struct UsageLimitBar: View {
             return LinearGradient(colors: [.green, .orange], startPoint: .leading, endPoint: .trailing)
         }
         return LinearGradient(colors: [.blue.opacity(0.6), .blue], startPoint: .leading, endPoint: .trailing)
+    }
+}
+
+// MARK: - Hallucination Risk List
+
+struct HallucinationRiskList: View {
+    let metrics: [ContextMetrics]
+
+    private var duplicatedNames: Set<String> {
+        var counts: [String: Int] = [:]
+        for m in metrics { counts[m.projectName, default: 0] += 1 }
+        return Set(counts.filter { $0.value > 1 }.keys)
+    }
+
+    private func displayLabel(for metric: ContextMetrics) -> String {
+        if duplicatedNames.contains(metric.projectName) {
+            return "\(metric.projectName) · \(metric.id.prefix(6))"
+        }
+        return metric.projectName
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Hallucination Risk")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            if metrics.isEmpty {
+                Text("No active sessions today")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(metrics) { metric in
+                        HallucinationRiskRow(metric: metric, displayLabel: displayLabel(for: metric))
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct HallucinationRiskRow: View {
+    let metric: ContextMetrics
+    let displayLabel: String
+
+    private var rowColor: Color {
+        let p = metric.fillPercent
+        if p >= 90 { return .red }
+        if p >= 75 { return .orange }
+        if p >= 50 { return .yellow }
+        return .green
+    }
+
+    private var tokenCaption: String {
+        let used = Self.formatTokens(metric.lastMessageContextTokens)
+        let window = Self.formatTokens(metric.contextWindowSize)
+        if let model = metric.model {
+            return "\(used) / \(window) · \(Self.shortModelName(model))"
+        }
+        return "\(used) / \(window)"
+    }
+
+    private var tooltip: String {
+        var parts: [String] = [metric.id]
+        if let path = metric.projectPath { parts.append(path) }
+        if let model = metric.model { parts.append(model) }
+        parts.append("\(metric.lastMessageContextTokens.formatted()) / \(metric.contextWindowSize.formatted()) tokens")
+        return parts.joined(separator: "\n")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                Text(displayLabel)
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer(minLength: 4)
+
+                Text("\(Int(metric.fillPercent))%")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(rowColor)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.2))
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(rowColor)
+                        .frame(width: max(geo.size.width * min(metric.fillPercent, 100) / 100.0, 0))
+                }
+            }
+            .frame(height: 5)
+
+            Text(tokenCaption)
+                .font(.system(size: 9, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 2)
+        .help(tooltip)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            let m = Double(count) / 1_000_000.0
+            return m >= 10 ? "\(Int(m))M" : String(format: "%.1fM", m)
+        }
+        if count >= 1_000 {
+            return "\(count / 1_000)K"
+        }
+        return "\(count)"
+    }
+
+    private static func shortModelName(_ raw: String) -> String {
+        var s = raw
+        if s.hasPrefix("claude-") { s.removeFirst("claude-".count) }
+        return s
     }
 }
 

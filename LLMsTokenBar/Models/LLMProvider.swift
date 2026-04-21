@@ -49,4 +49,19 @@ enum LLMProviderType: String, CaseIterable, Identifiable {
         let cacheCreate = Double(cacheCreationTokens) / 1_000_000.0 * cacheCreationPricePerMTok
         return input + output + cacheRead + cacheCreate
     }
+
+    func contextWindowSize(for model: String?) -> Int {
+        guard let m = model?.lowercased() else { return 200_000 }
+        if m.contains("[1m]") || m.contains("-1m") { return 1_000_000 }
+        return 200_000
+    }
+
+    /// The model-string check can't tell standard vs 1M deployments apart for stock names
+    /// (e.g. `claude-opus-4-7` ships in both). If we observe a context larger than the default,
+    /// the true window must be bigger — bump to the 1M tier.
+    func inferredContextWindowSize(for model: String?, observedContextTokens: Int) -> Int {
+        let base = contextWindowSize(for: model)
+        if observedContextTokens > base && base < 1_000_000 { return 1_000_000 }
+        return base
+    }
 }

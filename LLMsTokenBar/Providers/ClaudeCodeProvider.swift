@@ -18,6 +18,14 @@ final class ClaudeCodeProvider: UsageProvider {
         return jsonlFiles.compactMap { parseSession(at: $0) }
     }
 
+    func fetchContextMetrics(since: Date) -> [ContextMetrics] {
+        let jsonlFiles = findJsonlFiles(in: projectsDirectory)
+        return jsonlFiles.compactMap { url -> ContextMetrics? in
+            guard let mtime = fileModificationDate(url), mtime >= since else { return nil }
+            return parseLastMessageContext(at: url)
+        }
+    }
+
     private func findJsonlFiles(in directory: URL) -> [URL] {
         guard let enumerator = FileManager.default.enumerator(
             at: directory,
@@ -89,6 +97,67 @@ final class ClaudeCodeProvider: UsageProvider {
             cacheReadTokens: cacheReadTokens,
             cacheCreationTokens: cacheCreationTokens,
             model: nil
+        )
+    }
+
+    /// Parse the *last* assistant message in a session to sample current context fill.
+    /// The sum (input + cache_read + cache_creation) at that turn equals input context size.
+    private func parseLastMessageContext(at url: URL) -> ContextMetrics? {
+        guard let data = try? Data(contentsOf: url),
+              let content = String(data: data, encoding: .utf8) else { return nil }
+
+        let sessionId = url.deletingPathExtension().lastPathComponent
+        var lastInput = 0
+        var lastCacheRead = 0
+        var lastCacheCreate = 0
+        var lastModel: String?
+        var lastTimestamp: Date?
+        var latestCwd: String?
+        var found = false
+
+        let lines = content.components(separatedBy: .newlines)
+        for line in lines {
+            guard !line.isEmpty,
+                  let lineData = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
+                continue
+            }
+
+            if let cwd = obj["cwd"] as? String, !cwd.isEmpty {
+                latestCwd = cwd
+            }
+
+            guard let message = obj["message"] as? [String: Any],
+                  let usage = message["usage"] as? [String: Any] else {
+                continue
+            }
+
+            lastInput = usage["input_tokens"] as? Int ?? 0
+            lastCacheRead = usage["cache_read_input_tokens"] as? Int ?? 0
+            lastCacheCreate = usage["cache_creation_input_tokens"] as? Int ?? 0
+            lastModel = message["model"] as? String
+            lastTimestamp = extractTimestamp(from: obj)
+            found = true
+        }
+
+        guard found else { return nil }
+
+        let contextTokens = lastInput + lastCacheRead + lastCacheCreate
+        guard contextTokens > 0 else { return nil }
+
+        let windowSize = providerType.inferredContextWindowSize(
+            for: lastModel,
+            observedContextTokens: contextTokens
+        )
+        let timestamp = lastTimestamp ?? fileModificationDate(url) ?? Date()
+
+        return ContextMetrics(
+            id: sessionId,
+            lastMessageContextTokens: contextTokens,
+            contextWindowSize: windowSize,
+            model: lastModel,
+            timestamp: timestamp,
+            projectPath: latestCwd
         )
     }
 

@@ -43,4 +43,16 @@ struct UsageAggregator {
         }
         return result
     }
+
+    func hallucinationRisk(from metrics: [ContextMetrics]) -> HallucinationRiskSummary {
+        guard !metrics.isEmpty else { return .empty }
+        let avg = metrics.map(\.fillPercent).reduce(0, +) / Double(metrics.count)
+        let worst = metrics.max { $0.fillPercent < $1.fillPercent }
+        return HallucinationRiskSummary(
+            averageFillPercent: avg,
+            maxFillPercent: worst?.fillPercent ?? 0,
+            worstSessionId: worst?.id,
+            sessionsConsidered: metrics.count
+        )
+    }
 }
