@@ -90,6 +90,7 @@ final class UsageViewModel {
         previous: HallucinationRiskSummary,
         next: HallucinationRiskSummary
     ) {
+        guard HallucinationRiskSummary.isEnabled else { return }
         let newLevel = next.maxLevel
         defer { previousMaxRiskLevel = newLevel }
         // Only fire when crossing UP into .high or .critical

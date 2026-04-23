@@ -46,11 +46,13 @@ struct UsagePopoverView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
 
-            Divider()
+            if HallucinationRiskSummary.isEnabled {
+                Divider()
 
-            HallucinationRiskList(metrics: viewModel.contextMetrics)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                HallucinationRiskList(metrics: viewModel.contextMetrics)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+            }
 
             Divider()
 
