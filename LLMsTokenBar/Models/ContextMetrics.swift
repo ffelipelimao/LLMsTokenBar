@@ -20,6 +20,8 @@ struct ContextMetrics: Identifiable {
 }
 
 struct HallucinationRiskSummary {
+    static let isEnabled = false
+
     let averageFillPercent: Double
     let maxFillPercent: Double
     let worstSessionId: String?

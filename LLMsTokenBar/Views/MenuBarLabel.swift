@@ -12,6 +12,7 @@ struct MenuBarLabel: View {
     }
 
     private var tint: Color {
+        guard HallucinationRiskSummary.isEnabled else { return .primary }
         switch hallucinationMaxLevel {
         case .critical: return .red
         case .high: return .orange
